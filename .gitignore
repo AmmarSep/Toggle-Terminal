@@ -1,0 +1,10 @@
+node_modules/
+main.js
+main.css
+styles.css
+*.tgz
+.DS_Store
+
+# Written at runtime from the copy embedded in main.js
+/pty-bridge.py.bak
+data.json

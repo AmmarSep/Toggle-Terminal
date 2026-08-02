@@ -1,0 +1,9 @@
+{
+  "id": "terminal-panel",
+  "name": "Toggle Terminal",
+  "version": "1.0.0",
+  "minAppVersion": "1.5.0",
+  "description": "Toggle a real shell terminal in a bottom panel with Ctrl+Backtick. Hiding the panel keeps the session alive.",
+  "author": "Ammar",
+  "isDesktopOnly": true
+}
