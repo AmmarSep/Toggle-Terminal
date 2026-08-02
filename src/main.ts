@@ -168,6 +168,7 @@ export default class ToggleTerminalPlugin extends Plugin {
 		lines.push(`platform    ${process.platform} ${process.arch}`);
 		lines.push(`plugin dir  ${pluginDir ?? "(unknown — not a FileSystemAdapter)"}`);
 		lines.push(`backend     ${this.backendKind()}`);
+		lines.push(`renderer    ${this.terminalView()?.renderer ?? "(no panel open)"}`);
 		lines.push(`shell       ${file} ${args.join(" ")}`.trimEnd());
 		lines.push("");
 

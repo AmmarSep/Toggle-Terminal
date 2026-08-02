@@ -1,7 +1,10 @@
-import { ItemView, setIcon, type WorkspaceLeaf } from "obsidian";
-import { Terminal } from "@xterm/xterm";
+import { ItemView, Platform, setIcon, type WorkspaceLeaf } from "obsidian";
+import { Terminal, type IWindowsPty } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import { WebglAddon } from "@xterm/addon-webgl";
+import { CanvasAddon } from "@xterm/addon-canvas";
+import * as os from "node:os";
 
 import type ToggleTerminalPlugin from "./main";
 import { createSession, SHELL_EOL, type SessionKind, type TerminalSession } from "./pty";
@@ -12,6 +15,23 @@ export const TERMINAL_VIEW_TYPE = "toggle-terminal-view";
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/**
+ * ConPTY does not move rows back into the viewport the way a Unix pty does —
+ * it appends empty rows instead, so growing the terminal can drop data. Telling
+ * xterm the pty is Windows-hosted enables its compensation for that.
+ *
+ * `os.release()` gives "10.0.26200"; the third field is the build. Anything at
+ * or above 21376 keeps reflow enabled, which is what we want on modern Windows.
+ */
+function windowsPtyInfo(): IWindowsPty | undefined {
+	if (!Platform.isWin) return undefined;
+	const build = Number.parseInt(os.release().split(".")[2] ?? "", 10);
+	return {
+		backend: "conpty",
+		...(Number.isFinite(build) ? { buildNumber: build } : {}),
+	};
 }
 
 const BACKEND_LABEL: Record<SessionKind, string> = {
@@ -38,6 +58,8 @@ export class TerminalView extends ItemView {
 	private exited = false;
 	/** Set on the shell's first byte, so pasted text is not sent before the prompt exists. */
 	private hasOutput = false;
+	/** Which xterm renderer ended up active; surfaced in diagnostics. */
+	renderer: "webgl" | "canvas" | "dom" = "dom";
 
 	/** Local line editing state, used only by the no-TTY fallback. */
 	private lineBuffer = "";
@@ -129,6 +151,7 @@ export class TerminalView extends ItemView {
 			macOptionIsMeta: true,
 			scrollback: settings.scrollback,
 			theme: obsidianTerminalTheme(this.contentEl),
+			windowsPty: windowsPtyInfo(),
 		});
 
 		const fitAddon = new FitAddon();
@@ -140,12 +163,48 @@ export class TerminalView extends ItemView {
 		);
 
 		terminal.open(this.surfaceEl);
+		this.attachRenderer(terminal);
 		terminal.onData((data) => this.handleInput(data));
 		terminal.onBinary((data) => this.handleInput(data));
 		terminal.attachCustomKeyEventHandler((event) => this.handleKeyEvent(event));
 
 		this.terminal = terminal;
 		this.fitAddon = fitAddon;
+	}
+
+	/**
+	 * xterm's default DOM renderer repaints through the DOM, which is fine for a
+	 * Unix pty but struggles with ConPTY's much heavier redraw traffic. Prefer
+	 * GPU rendering, fall back a step at a time rather than failing.
+	 *
+	 * WebGL contexts can be lost (GPU reset, driver update, too many contexts),
+	 * and a lost context renders nothing at all — so drop to canvas if it goes.
+	 */
+	private attachRenderer(terminal: Terminal): void {
+		try {
+			const webgl = new WebglAddon();
+			webgl.onContextLoss(() => {
+				webgl.dispose();
+				this.renderer = "dom";
+				this.attachCanvasRenderer(terminal);
+			});
+			terminal.loadAddon(webgl);
+			this.renderer = "webgl";
+			return;
+		} catch {
+			/* no WebGL here — try canvas */
+		}
+		this.attachCanvasRenderer(terminal);
+	}
+
+	private attachCanvasRenderer(terminal: Terminal): void {
+		try {
+			terminal.loadAddon(new CanvasAddon());
+			this.renderer = "canvas";
+		} catch {
+			// xterm falls back to its DOM renderer on its own.
+			this.renderer = "dom";
+		}
 	}
 
 	private startSession(): void {
