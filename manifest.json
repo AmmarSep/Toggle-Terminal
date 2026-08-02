@@ -1,5 +1,5 @@
 {
-  "id": "terminal-panel",
+  "id": "toggle-terminal",
   "name": "Toggle Terminal",
   "version": "1.0.0",
   "minAppVersion": "1.5.0",

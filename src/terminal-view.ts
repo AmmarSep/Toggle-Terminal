@@ -8,7 +8,7 @@ import { createSession, SHELL_EOL, type SessionKind, type TerminalSession } from
 import { obsidianMonospaceFont, obsidianTerminalTheme } from "./theme";
 import { bracketedPaste, toSingleLine } from "./send";
 
-export const TERMINAL_VIEW_TYPE = "terminal-panel-view";
+export const TERMINAL_VIEW_TYPE = "toggle-terminal-view";
 
 function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -67,10 +67,10 @@ export class TerminalView extends ItemView {
 
 	override async onOpen(): Promise<void> {
 		this.contentEl.empty();
-		this.contentEl.addClass("terminal-panel-view");
+		this.contentEl.addClass("toggle-terminal-view");
 
 		this.buildStatusBar();
-		this.surfaceEl = this.contentEl.createDiv({ cls: "terminal-panel-surface" });
+		this.surfaceEl = this.contentEl.createDiv({ cls: "toggle-terminal-surface" });
 
 		this.createTerminal();
 		this.startSession();
@@ -429,11 +429,11 @@ export class TerminalView extends ItemView {
 	private buildStatusBar(): void {
 		if (!this.plugin.settings.showStatusBar) return;
 
-		const statusEl = this.contentEl.createDiv({ cls: "terminal-panel-status" });
+		const statusEl = this.contentEl.createDiv({ cls: "toggle-terminal-status" });
 		this.statusEl = statusEl;
-		this.statusDotEl = statusEl.createDiv({ cls: "terminal-panel-status-dot" });
-		this.statusTextEl = statusEl.createSpan({ cls: "terminal-panel-status-text" });
-		statusEl.createDiv({ cls: "terminal-panel-status-spacer" });
+		this.statusDotEl = statusEl.createDiv({ cls: "toggle-terminal-status-dot" });
+		this.statusTextEl = statusEl.createSpan({ cls: "toggle-terminal-status-text" });
+		statusEl.createDiv({ cls: "toggle-terminal-status-spacer" });
 		this.addStatusButton(statusEl, "eraser", "Clear terminal", () => this.terminal?.clear());
 		this.addStatusButton(statusEl, "rotate-ccw", "Restart session", () => this.restart());
 
@@ -443,7 +443,7 @@ export class TerminalView extends ItemView {
 
 	private addStatusButton(parent: HTMLElement, icon: string, label: string, onClick: () => void): void {
 		const button = parent.createEl("button", {
-			cls: "terminal-panel-status-button",
+			cls: "toggle-terminal-status-button",
 			attr: { "aria-label": label, type: "button" },
 		});
 		setIcon(button, icon);

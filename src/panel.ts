@@ -10,7 +10,7 @@ import type { WorkspaceLeaf } from "obsidian";
  * and running commands survive a hide/show cycle.
  */
 
-export const HIDDEN_CLASS = "terminal-panel-is-hidden";
+export const HIDDEN_CLASS = "toggle-terminal-is-hidden";
 
 /** The `.workspace-leaf` element that hosts this view. */
 function leafElement(leaf: WorkspaceLeaf): HTMLElement | null {
