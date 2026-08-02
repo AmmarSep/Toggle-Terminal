@@ -5,5 +5,6 @@
   "minAppVersion": "1.5.0",
   "description": "Toggle a real shell terminal in a bottom panel with Ctrl+Backtick. Hiding the panel keeps the session alive.",
   "author": "Ammar",
+  "authorUrl": "https://github.com/AmmarSep",
   "isDesktopOnly": true
 }
