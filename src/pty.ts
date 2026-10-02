@@ -26,6 +26,8 @@ interface NodePtyProcess {
 	readonly pid: number;
 	readonly cols: number;
 	readonly rows: number;
+	/** Name of the foreground process (macOS/Linux); the shell's own name on Windows. */
+	readonly process?: string;
 	onData(listener: (data: string) => void): NodePtyDisposable;
 	onExit(listener: (event: NodePtyExitEvent) => void): NodePtyDisposable;
 	write(data: string): void;
@@ -179,6 +181,8 @@ export interface TerminalSession {
 	readonly kind: SessionKind;
 	readonly pid: number | undefined;
 	readonly alive: boolean;
+	/** Foreground program, when the backend can tell (node-pty only). */
+	readonly processName: string | undefined;
 	onData(listener: (chunk: string) => void): void;
 	onExit(listener: (exitCode: number) => void): void;
 	write(data: string): void;
@@ -213,6 +217,10 @@ abstract class BaseSession implements TerminalSession {
 
 	get alive(): boolean {
 		return !this.disposed;
+	}
+
+	get processName(): string | undefined {
+		return undefined;
 	}
 
 	onData(listener: (chunk: string) => void): void {
@@ -259,6 +267,16 @@ class PtySession extends BaseSession {
 
 	override get pid(): number | undefined {
 		return this.process.pid;
+	}
+
+	override get processName(): string | undefined {
+		if (this.disposed) return undefined;
+		try {
+			const name = this.process.process;
+			return typeof name === "string" && name.length > 0 ? name : undefined;
+		} catch {
+			return undefined;
+		}
 	}
 
 	override write(data: string): void {
@@ -559,11 +577,84 @@ export function parseArgs(raw: string): string[] {
 	);
 }
 
-export function terminalEnv(): Record<string, string | undefined> {
-	return {
-		...process.env,
-		TERM: "xterm-256color",
-		COLORTERM: "truecolor",
-		TERM_PROGRAM: "Obsidian",
-	};
+export interface EnvironmentInfo {
+	vaultPath: string | null;
+	vaultName: string;
+	pluginVersion: string;
+	/** Extra variables from settings, applied last. */
+	extra: Record<string, string>;
+}
+
+/**
+ * Variables Electron sets for its own processes. Inherited by a child they
+ * change how Node-based CLIs start (ELECTRON_RUN_AS_NODE turns any Electron
+ * binary into plain Node), so they are dropped, as VS Code does.
+ */
+const ELECTRON_ONLY_VARIABLES = ["ELECTRON_RUN_AS_NODE", "ELECTRON_NO_ATTACH_CONSOLE", "ELECTRON_NO_ASAR"];
+
+/**
+ * `en-GB` → `en_GB.UTF-8`. Apps launched from Finder or the Dock get no LANG
+ * at all, which leaves zsh treating every multibyte character as several
+ * columns: accented input breaks and box-drawing UIs misalign.
+ */
+export function utf8Locale(language: string | undefined): string {
+	const match = /^([a-z]{2,3})(?:[-_]([A-Za-z]{2}))?/.exec(language ?? "");
+	if (!match) return "en_US.UTF-8";
+	const region = match[2] ? match[2].toUpperCase() : match[1] === "en" ? "US" : match[1].toUpperCase();
+	return `${match[1]}_${region}.UTF-8`;
+}
+
+/**
+ * Locale variables for a session that inherited none. macOS gets a real LANG
+ * when the matching locale is installed (it nearly always is for en_US),
+ * otherwise only the character type is set, which is all that is needed for
+ * UTF-8 input and column widths. Linux gets C.UTF-8, built into modern glibc.
+ */
+export function localeEnv(
+	language: string | undefined,
+	exists: (locale: string) => boolean = (locale) => existsSync(`/usr/share/locale/${locale}`),
+): Record<string, string> {
+	if (!Platform.isMacOS) return { LC_CTYPE: "C.UTF-8" };
+	for (const candidate of [utf8Locale(language), "en_US.UTF-8"]) {
+		if (exists(candidate)) return { LANG: candidate };
+	}
+	return { LC_CTYPE: "UTF-8" };
+}
+
+/** `KEY=value` per line; blank lines and `#` comments ignored. */
+export function parseEnvLines(text: string): Record<string, string> {
+	const result: Record<string, string> = {};
+	for (const rawLine of text.split(/\r?\n/)) {
+		const line = rawLine.trim();
+		if (line.length === 0 || line.startsWith("#")) continue;
+		const index = line.indexOf("=");
+		if (index <= 0) continue;
+		const key = line.slice(0, index).trim();
+		if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
+		let value = line.slice(index + 1).trim();
+		if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+			value = value.slice(1, -1);
+		}
+		result[key] = value;
+	}
+	return result;
+}
+
+export function terminalEnv(info: EnvironmentInfo): Record<string, string | undefined> {
+	const env: Record<string, string | undefined> = { ...process.env };
+	for (const name of ELECTRON_ONLY_VARIABLES) delete env[name];
+
+	env.TERM = "xterm-256color";
+	env.COLORTERM = "truecolor";
+	env.TERM_PROGRAM = "Obsidian";
+	env.TERM_PROGRAM_VERSION = info.pluginVersion;
+
+	if (!Platform.isWin && !env.LANG && !env.LC_ALL && !env.LC_CTYPE) {
+		Object.assign(env, localeEnv(typeof navigator !== "undefined" ? navigator.language : undefined));
+	}
+
+	if (info.vaultPath) env.OBSIDIAN_VAULT_PATH = info.vaultPath;
+	env.OBSIDIAN_VAULT_NAME = info.vaultName;
+
+	return { ...env, ...info.extra };
 }

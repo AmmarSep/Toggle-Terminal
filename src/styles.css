@@ -1,0 +1,550 @@
+@import "@xterm/xterm/css/xterm.css";
+
+/* ------------------------------------------------------------------ */
+/* Panel                                                               */
+/* ------------------------------------------------------------------ */
+
+.toggle-terminal-dock {
+	--tt-header-height: 30px;
+	position: absolute;
+	/* Above the editor area, below popovers, menus, modals and the status bar. */
+	z-index: 12;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	contain: layout;
+}
+
+.toggle-terminal-dock.is-hidden {
+	display: none;
+}
+
+/* Beside the editor, line the header up with the note tab row. */
+.toggle-terminal-dock.mod-right:not(.is-maximized),
+.toggle-terminal-dock.mod-left:not(.is-maximized) {
+	--tt-header-height: var(--header-height, 40px);
+}
+
+.toggle-terminal-dock.mod-bottom {
+	border-top: var(--divider-width, 1px) solid var(--divider-color, var(--background-modifier-border));
+}
+
+.toggle-terminal-dock.mod-right {
+	border-left: var(--divider-width, 1px) solid var(--divider-color, var(--background-modifier-border));
+}
+
+.toggle-terminal-dock.mod-left {
+	border-right: var(--divider-width, 1px) solid var(--divider-color, var(--background-modifier-border));
+}
+
+.toggle-terminal-dock.is-maximized {
+	border-top: var(--divider-width, 1px) solid var(--divider-color, var(--background-modifier-border));
+	box-shadow: var(--shadow-s);
+}
+
+/* ------------------------------------------------------------------ */
+/* Resize handle                                                       */
+/* ------------------------------------------------------------------ */
+
+.tt-resize-handle {
+	position: absolute;
+	z-index: 3;
+	touch-action: none;
+}
+
+.toggle-terminal-dock.mod-bottom .tt-resize-handle {
+	top: -4px;
+	left: 0;
+	right: 0;
+	height: 8px;
+	cursor: row-resize;
+}
+
+.toggle-terminal-dock.mod-right .tt-resize-handle {
+	top: 0;
+	bottom: 0;
+	left: -4px;
+	width: 8px;
+	cursor: col-resize;
+}
+
+.toggle-terminal-dock.mod-left .tt-resize-handle {
+	top: 0;
+	bottom: 0;
+	right: -4px;
+	width: 8px;
+	cursor: col-resize;
+}
+
+.toggle-terminal-dock.is-maximized:not(.mod-bottom) .tt-resize-handle {
+	display: none;
+}
+
+.toggle-terminal-dock.is-maximized .tt-resize-handle {
+	top: -4px;
+	left: 0;
+	right: 0;
+	bottom: auto;
+	width: auto;
+	height: 8px;
+	cursor: row-resize;
+}
+
+.tt-resize-handle::after {
+	content: "";
+	position: absolute;
+	opacity: 0;
+	background-color: var(--interactive-accent);
+	transition: opacity 120ms ease-in-out;
+}
+
+.toggle-terminal-dock.mod-bottom .tt-resize-handle::after,
+.toggle-terminal-dock.is-maximized .tt-resize-handle::after {
+	left: 0;
+	right: 0;
+	top: 3px;
+	height: 2px;
+}
+
+.toggle-terminal-dock.mod-right:not(.is-maximized) .tt-resize-handle::after,
+.toggle-terminal-dock.mod-left:not(.is-maximized) .tt-resize-handle::after {
+	top: 0;
+	bottom: 0;
+	left: 3px;
+	width: 2px;
+}
+
+.tt-resize-handle:hover::after,
+.tt-resize-handle.is-dragging::after {
+	opacity: 1;
+	transition-delay: 150ms;
+}
+
+.tt-resize-handle.is-dragging::after {
+	transition-delay: 0ms;
+}
+
+body.tt-dock-resizing {
+	user-select: none;
+}
+
+body.tt-dock-resizing.tt-resizing-rows,
+body.tt-dock-resizing.tt-resizing-rows * {
+	cursor: row-resize !important;
+}
+
+body.tt-dock-resizing.tt-resizing-cols,
+body.tt-dock-resizing.tt-resizing-cols * {
+	cursor: col-resize !important;
+}
+
+/* Embedded web views and PDFs would swallow the pointer mid-drag. */
+body.tt-dock-resizing iframe,
+body.tt-dock-resizing webview {
+	pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Header: tabs and actions                                            */
+/* ------------------------------------------------------------------ */
+
+.tt-header {
+	flex: 0 0 var(--tt-header-height);
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	min-width: 0;
+	height: var(--tt-header-height);
+	padding: 0 var(--size-4-1) 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+	background-color: var(--tab-container-background, var(--background-secondary));
+	font-size: var(--font-ui-small);
+	user-select: none;
+}
+
+body.mod-macos.is-hidden-frameless:not(.is-fullscreen) .toggle-terminal-dock.is-top-left .tt-header {
+	padding-left: var(--frame-left-space, 80px);
+}
+
+body.is-hidden-frameless:not(.mod-macos):not(.is-fullscreen) .toggle-terminal-dock.is-top-right .tt-header {
+	padding-right: var(--frame-right-space, 140px);
+}
+
+.tt-tabs {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex: 0 1 auto;
+	min-width: 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+	scrollbar-width: none;
+}
+
+.tt-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.tt-tab {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+	max-width: 220px;
+	height: 22px;
+	padding: 0 2px 0 8px;
+	border-radius: var(--radius-s);
+	color: var(--text-muted);
+	cursor: var(--cursor);
+	white-space: nowrap;
+}
+
+.tt-tab:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.tt-tab.is-active {
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: 0 0 0 1px var(--background-modifier-border);
+}
+
+.tt-tab.is-dragging {
+	opacity: 0.5;
+}
+
+.tt-tab.is-drop-before {
+	box-shadow: inset 2px 0 0 var(--interactive-accent);
+}
+
+.tt-tab.is-drop-after {
+	box-shadow: inset -2px 0 0 var(--interactive-accent);
+}
+
+.tt-tab-icon {
+	display: flex;
+	flex: 0 0 auto;
+	color: var(--text-faint);
+}
+
+.tt-tab-icon .svg-icon {
+	width: 13px;
+	height: 13px;
+}
+
+.tt-tab.is-active .tt-tab-icon {
+	color: var(--text-accent);
+}
+
+.tt-tab.has-bell .tt-tab-icon {
+	color: var(--color-orange, var(--text-accent));
+}
+
+.tt-tab-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+
+.tt-tab.is-exited .tt-tab-title {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
+/* Unseen output in a background tab. */
+.tt-tab.has-activity::after {
+	content: "";
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background-color: var(--text-accent);
+}
+
+.tt-tab-close {
+	display: flex;
+	flex: 0 0 auto;
+	padding: 2px !important;
+	visibility: hidden;
+}
+
+.tt-tab-close .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
+.tt-tab:hover .tt-tab-close,
+.tt-tab.is-active .tt-tab-close {
+	visibility: visible;
+}
+
+.tt-tab-rename {
+	width: 140px;
+	height: 18px;
+	padding: 0 4px;
+	font-size: var(--font-ui-small);
+}
+
+/* OSC 9;4 progress under the tab title. */
+.tt-tab-progress {
+	position: absolute;
+	left: 6px;
+	right: 6px;
+	bottom: 1px;
+	height: 2px;
+	overflow: hidden;
+	border-radius: 1px;
+	background-color: var(--background-modifier-border);
+}
+
+.tt-tab-progress-bar {
+	height: 100%;
+	background-color: var(--interactive-accent);
+	transition: width 200ms ease-out;
+}
+
+.tt-tab-progress.is-error .tt-tab-progress-bar {
+	background-color: var(--color-red);
+}
+
+.tt-tab-progress.is-paused .tt-tab-progress-bar {
+	background-color: var(--color-yellow);
+}
+
+.tt-tab-progress.is-indeterminate .tt-tab-progress-bar {
+	width: 35%;
+	animation: tt-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes tt-indeterminate {
+	from {
+		transform: translateX(-100%);
+	}
+	to {
+		transform: translateX(300%);
+	}
+}
+
+.tt-header-button {
+	flex: 0 0 auto;
+	padding: var(--size-2-1) !important;
+}
+
+.tt-header-button.is-hidden {
+	display: none;
+}
+
+.tt-header-button .svg-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.tt-header-spacer {
+	flex: 1 1 auto;
+	align-self: stretch;
+	min-width: 12px;
+}
+
+.tt-actions {
+	display: flex;
+	align-items: center;
+	gap: 1px;
+	flex: 0 0 auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Terminal surface                                                    */
+/* ------------------------------------------------------------------ */
+
+.tt-body {
+	position: relative;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+}
+
+.tt-instance {
+	position: absolute;
+	inset: 0;
+	display: none;
+	flex-direction: column;
+}
+
+.tt-instance.is-active {
+	display: flex;
+}
+
+.tt-instance.is-drop-target::after {
+	content: "";
+	position: absolute;
+	inset: 4px;
+	border: 2px dashed var(--interactive-accent);
+	border-radius: var(--radius-m);
+	pointer-events: none;
+}
+
+.tt-surface {
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	padding: var(--size-2-3) 0 var(--size-2-2) var(--size-4-2);
+	overflow: hidden;
+}
+
+.tt-surface .xterm {
+	height: 100%;
+}
+
+.tt-surface .xterm-viewport {
+	background-color: transparent !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Find bar                                                            */
+/* ------------------------------------------------------------------ */
+
+.tt-find {
+	position: absolute;
+	top: var(--size-4-1);
+	right: var(--size-4-5);
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 3px 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	box-shadow: var(--shadow-s);
+}
+
+.tt-find.is-hidden {
+	display: none;
+}
+
+.tt-find-input {
+	width: 180px;
+	height: 24px;
+	padding: 0 6px;
+	font-size: var(--font-ui-small);
+}
+
+.tt-find.has-no-results .tt-find-input {
+	border-color: var(--color-red);
+}
+
+.tt-find-count {
+	min-width: 64px;
+	padding: 0 4px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	text-align: center;
+	white-space: nowrap;
+}
+
+.tt-find-toggle,
+.tt-find-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 22px;
+	min-width: 22px;
+	padding: 0 4px;
+	border: none;
+	border-radius: var(--radius-s);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	cursor: var(--cursor);
+}
+
+.tt-find-toggle:hover,
+.tt-find-button:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.tt-find-toggle.is-active {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+.tt-find-button .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Elsewhere                                                           */
+/* ------------------------------------------------------------------ */
+
+/* Bell or notification while the panel is hidden. */
+.side-dock-ribbon-action.tt-has-bell {
+	position: relative;
+}
+
+.side-dock-ribbon-action.tt-has-bell::after {
+	content: "";
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background-color: var(--color-orange, var(--interactive-accent));
+}
+
+.tt-notice {
+	cursor: pointer;
+}
+
+.tt-legacy-placeholder {
+	padding: var(--size-4-4);
+	color: var(--text-muted);
+}
+
+.tt-number-input {
+	width: 80px;
+}
+
+.tt-profile-row .setting-item-info {
+	display: none;
+}
+
+.tt-profile-row .setting-item-control {
+	justify-content: flex-start;
+}
+
+.tt-profile-row input[type="text"] {
+	width: 160px;
+}
+
+.tt-profile-row input.tt-profile-command {
+	flex: 1 1 auto;
+	width: auto;
+	font-family: var(--font-monospace);
+}
+
+.tt-env-input {
+	width: 100%;
+	min-width: 240px;
+	font-family: var(--font-monospace);
+}
+
+.tt-settings-note {
+	padding-bottom: var(--size-4-2);
+}
+
+.tt-settings-note code {
+	margin: 0 2px;
+}

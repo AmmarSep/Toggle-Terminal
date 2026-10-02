@@ -1,10 +1,13 @@
 node_modules/
-main.js
-main.css
-styles.css
+# Build outputs. Anchored to the root: src/styles.css is source and must be committed.
+/main.js
+/main.css
+/styles.css
 *.tgz
 .DS_Store
+test/.unit.mjs
 
 # Written at runtime from the copy embedded in main.js
 /pty-bridge.py.bak
 data.json
+test/harness/.out/

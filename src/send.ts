@@ -1,5 +1,5 @@
 /**
- * Preparing a note selection for a shell prompt.
+ * Text that travels from notes to the shell.
  *
  * Notes wrap commands in markdown: fences, `$ ` prompt decoration, blockquotes.
  * Pasting that verbatim makes the shell choke on the decoration rather than
@@ -44,15 +44,6 @@ export function toShellCommand(raw: string): string {
 	return cleaned.slice(start, end).join("\n");
 }
 
-/**
- * Bracketed paste. Without it a multi-line selection executes line by line as
- * the newlines arrive; inside the brackets the shell treats the whole thing as
- * literal input and waits for Enter. Supported by zsh 5.1+ and bash 4.4+.
- */
-export function bracketedPaste(text: string): string {
-	return `\x1b[200~${text}\x1b[201~`;
-}
-
 /** Collapse to one line, for the no-TTY fallback where we echo input ourselves. */
 export function toSingleLine(text: string): string {
 	return text
@@ -60,4 +51,62 @@ export function toSingleLine(text: string): string {
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0)
 		.join(" ");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Quoting                                                                    */
+/* -------------------------------------------------------------------------- */
+
+const POSIX_SAFE = /^[\w@%+=:,./-]+$/;
+const WINDOWS_SAFE = /^[\w@%+=:,./\\-]+$/;
+
+/**
+ * Quote one argument for the user's shell. POSIX shells get single quotes
+ * (nothing inside is special); cmd.exe and PowerShell both accept double
+ * quotes with embedded quotes doubled.
+ */
+export function shellQuote(value: string, windows: boolean): string {
+	if (value.length === 0) return windows ? '""' : "''";
+	if (windows) {
+		return WINDOWS_SAFE.test(value) ? value : `"${value.replace(/"/g, '""')}"`;
+	}
+	return POSIX_SAFE.test(value) ? value : `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Claude Code's file mention syntax; quoted when the path contains spaces. */
+export function claudeMention(relativePath: string): string {
+	const normalised = relativePath.replace(/\\/g, "/");
+	return /\s/.test(normalised) ? `@"${normalised}"` : `@${normalised}`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Launch-profile templates                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type TemplateVariables = Record<string, string | null | undefined>;
+
+/** Placeholders a profile command may use. Values are shell-quoted on expansion. */
+export const TEMPLATE_VARIABLES: ReadonlyArray<{ name: string; description: string }> = [
+	{ name: "vault", description: "absolute path of the vault" },
+	{ name: "file", description: "active note, relative to the vault" },
+	{ name: "fileAbs", description: "active note, absolute path" },
+	{ name: "folder", description: "folder of the active note, absolute path" },
+	{ name: "name", description: "active note's name without extension" },
+	{ name: "selection", description: "selected text in the active editor" },
+];
+
+/**
+ * `{{name}}` → quoted value. Unknown names are left exactly as written so a
+ * typo is visible in the terminal rather than silently becoming nothing.
+ */
+export function expandTemplate(
+	template: string,
+	variables: TemplateVariables,
+	quote: (value: string) => string,
+): string {
+	return template.replace(/\{\{\s*([A-Za-z]+)\s*\}\}/g, (match: string, name: string) => {
+		if (!Object.prototype.hasOwnProperty.call(variables, name)) return match;
+		const value = variables[name];
+		return value ? quote(value) : "";
+	});
 }

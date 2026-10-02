@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Toggle Terminal harness</title>
+<style>
+:root, body {
+	--background-primary: #1e1e1e; --background-primary-alt: #242424; --background-secondary: #262626;
+	--background-modifier-border: #363636; --background-modifier-hover: rgba(255,255,255,0.075);
+	--divider-color: #333; --divider-width: 1px; --text-normal: #dadada; --text-muted: #b3b3b3; --text-faint: #6f6f6f;
+	--text-accent: #a68af9; --interactive-accent: #7f6df2; --text-on-accent: #fff; --text-selection: rgba(137,180,250,0.25);
+	--font-ui-small: 13px; --font-ui-smaller: 12px; --font-monospace: "DejaVu Sans Mono", Menlo, monospace;
+	--size-2-1: 2px; --size-2-2: 4px; --size-2-3: 6px; --size-4-1: 4px; --size-4-2: 8px; --size-4-4: 16px; --size-4-5: 20px;
+	--radius-s: 4px; --radius-m: 8px; --color-red: #fb464c; --color-green: #44cf6e; --color-yellow: #e0de71;
+	--color-blue: #027aff; --color-purple: #a882ff; --color-cyan: #53dfdd; --color-orange: #e9973f;
+	--color-base-30: #363636; --color-base-50: #666; --color-base-70: #bababa;
+	--scrollbar-thumb-bg: rgba(255,255,255,0.1); --scrollbar-active-thumb-bg: rgba(255,255,255,0.2);
+	--shadow-s: 0 1px 3px rgba(0,0,0,0.35); --tab-container-background: #262626; --cursor: default; --header-height: 40px;
+	--layer-status-bar: 15; --layer-menu: 65; --layer-notice: 60; --layer-modal: 50;
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background-primary); color: var(--text-normal);
+	font-family: -apple-system, "Segoe UI", Inter, Ubuntu, sans-serif; font-size: 14px; }
+.app-container { position: relative; display: flex; flex-direction: column; height: 100%; }
+.horizontal-main-container { display: flex; flex: 1 1 0; min-height: 0; width: 100%; }
+.workspace { display: flex; flex: 1 1 auto; overflow: hidden; background: var(--background-secondary); }
+/* Obsidian's own sizing: the root fills the workspace and only shrinks sideways. */
+.workspace > .workspace-leaf, .workspace > .workspace-split { height: 100%; width: 100%; }
+.workspace-ribbon.mod-left { flex: 0 0 44px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 48px; border-right: 1px solid var(--divider-color); background: #202020; }
+.workspace-split.mod-left-split, .workspace-split.mod-right-split { flex: 0 0 auto; display: flex; flex-direction: column; background: var(--background-secondary); }
+.workspace-split.mod-left-split { width: 250px; border-right: 1px solid var(--divider-color); }
+.workspace-split.mod-right-split { width: 210px; border-left: 1px solid var(--divider-color); }
+.workspace-split.mod-root { display: flex; background: var(--background-primary); }
+.workspace-tabs { flex: 1 1 0; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.workspace-tab-header-container { min-width: 120px; flex: 0 0 40px; height: 40px; display: flex; align-items: flex-end; gap: 2px; padding-left: 8px; background: var(--tab-container-background); border-bottom: 1px solid var(--divider-color); }
+.workspace-tab-header { padding: 8px 14px; border-radius: 8px 8px 0 0; color: var(--text-muted); font-size: 13px; }
+.workspace-tab-header.is-active { background: var(--background-primary); color: var(--text-normal); }
+.workspace-tab-container { flex: 1 1 0; overflow: auto; padding: 24px 48px; line-height: 1.6; min-height: 0; }
+.workspace-tab-container h1 { margin-top: 0; font-size: 26px; }
+.sidebar-title { padding: 12px 14px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+.nav-file { padding: 3px 18px; color: var(--text-muted); font-size: 13px; }
+.status-bar { position: absolute; bottom: 0; right: 0; z-index: var(--layer-status-bar); display: flex; gap: 12px; padding: 4px 10px; font-size: 12px; color: var(--text-muted); background: var(--background-secondary); border-top-left-radius: 8px; border: 1px solid var(--divider-color); border-right: 0; border-bottom: 0; }
+.clickable-icon { display: flex; align-items: center; justify-content: center; padding: 4px 6px; border-radius: 4px; color: var(--text-muted); cursor: var(--cursor); background: transparent; border: 0; }
+.clickable-icon:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.svg-icon { width: 16px; height: 16px; }
+.menu { position: fixed; z-index: var(--layer-menu); min-width: 200px; padding: 4px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.45); font-size: 13px; }
+.menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 4px; }
+.menu-item:hover { background: var(--background-modifier-hover); }
+.menu-item.is-disabled { opacity: .45; }
+.menu-item-icon .svg-icon { width: 14px; height: 14px; }
+.menu-separator { height: 1px; margin: 4px 6px; background: var(--background-modifier-border); }
+.notice-container { position: fixed; top: 48px; right: 12px; z-index: var(--layer-notice); display: flex; flex-direction: column; gap: 6px; }
+.notice { padding: 10px 14px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: 8px; font-size: 13px; }
+.modal-container { position: fixed; inset: 0; z-index: var(--layer-modal); display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+.modal { min-width: 360px; padding: 20px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 10px; }
+.modal-title { font-weight: 600; margin-bottom: 8px; }
+.modal-button-container { display: flex; gap: 8px; justify-content: flex-end; }
+input { background: var(--background-primary); color: var(--text-normal); border: 1px solid var(--background-modifier-border); border-radius: 4px; }
+button { background: var(--background-modifier-hover); color: var(--text-normal); border: 1px solid var(--background-modifier-border); border-radius: 4px; }
+</style>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body class="theme-dark mod-macos">
+<div class="app-container">
+ <div class="horizontal-main-container">
+  <div class="workspace">
+   <div class="workspace-ribbon side-dock-ribbon mod-left"></div>
+   <div class="workspace-split mod-horizontal mod-sidedock mod-left-split">
+     <div class="sidebar-title">Files</div>
+     <div class="nav-file">06-JOURNAL</div><div class="nav-file">&nbsp;&nbsp;2026</div><div class="nav-file">&nbsp;&nbsp;&nbsp;&nbsp;30-08-2026 Log</div>
+     <div class="nav-file">&nbsp;&nbsp;Scribble</div><div class="nav-file">notes</div>
+   </div>
+   <div class="workspace-split mod-vertical mod-root">
+     <div class="workspace-tabs mod-top">
+       <div class="workspace-tab-header-container">
+         <div class="workspace-tab-header is-active">30-08-2026 Log</div>
+       </div>
+       <div class="workspace-tab-container">
+         <h1>30-08-2026 Log</h1>
+         <p>What I added to the note: why Rabbana is the right word; a 4-step routine, the same every time; make the word strong when you're calm, not only when you slip.</p>
+         <p>Line 2 of the note. Line 3 of the note. The editor area shrinks when the terminal panel opens and grows back when it closes.</p>
+         <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum.</p>
+         <p>Bottom of the note content.</p>
+       </div>
+     </div>
+   </div>
+   <div class="workspace-split mod-horizontal mod-sidedock mod-right-split">
+     <div class="sidebar-title">Outline</div>
+   </div>
+  </div>
+ </div>
+ <div class="status-bar"><span>0 backlinks</span><span>142 words</span></div>
+</div>
+<script src="/bundle.js"></script>
+</body>
+</html>

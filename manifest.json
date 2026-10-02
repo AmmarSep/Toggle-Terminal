@@ -1,9 +1,9 @@
 {
   "id": "toggle-terminal",
   "name": "Toggle Terminal",
-  "version": "1.0.0",
-  "minAppVersion": "1.5.0",
-  "description": "Toggle a real shell terminal in a bottom panel with Ctrl+Backtick. Hiding the panel keeps the session alive.",
+  "version": "2.0.0",
+  "minAppVersion": "1.7.2",
+  "description": "A real terminal docked under your notes, toggled with Ctrl+Backtick. Tabs, maximize, launch profiles (Claude Code), clickable note paths. Hiding keeps every session alive.",
   "author": "Ammar",
   "authorUrl": "https://github.com/AmmarSep",
   "isDesktopOnly": true
